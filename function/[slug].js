@@ -1,6 +1,6 @@
 export async function onRequestGet(context) {
   try {
-    const KV = context.env.MY_KV;
+    const KV = context.env.SHORTENER_KV;
     const slug = context.params.slug;
 
     if (!KV) {

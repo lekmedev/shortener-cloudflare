@@ -1,0 +1,603 @@
+const HTML = `<!doctype html>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Shorten - Modern</title>
+
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+        <style>
+            body {
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    Segoe UI,
+                    Roboto,
+                    Arial;
+            }
+        </style>
+    </head>
+
+    <body
+        class="bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-white min-h-screen flex flex-col"
+    >
+        <header class="border-b border-slate-200 dark:border-slate-800">
+            <div
+                class="max-w-xl mx-auto px-4 py-4 flex items-center justify-between"
+            >
+                <div class="flex items-center gap-2">
+                    <div
+                        class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white"
+                    >
+                        <i class="fa-solid fa-link"></i>
+                    </div>
+                    <span class="font-semibold">Shorten</span>
+                </div>
+                <span class="text-xs text-slate-400">Cloudflare KV UI</span>
+            </div>
+        </header>
+
+        <div
+            id="toast"
+            class="fixed top-5 left-1/2 -translate-x-1/2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-2 rounded-full text-sm shadow opacity-0 pointer-events-none transition z-50"
+        >
+            <i
+                id="toast-icon"
+                class="fa-solid fa-circle-check text-blue-500 mr-1"
+            ></i>
+            <span id="toast-msg"></span>
+        </div>
+
+        <main class="flex-1 flex justify-center items-center px-4 py-10">
+            <div class="w-full max-w-xl space-y-6">
+                <div
+                    class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5"
+                >
+                    <h1 class="text-lg font-semibold mb-4">Rút gọn link</h1>
+
+                    <form id="shorten-form" class="space-y-3">
+                        <input
+                            id="long-url"
+                            type="url"
+                            required
+                            placeholder="Dán URL dài..."
+                            class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+
+                        <input
+                            id="custom-slug"
+                            type="text"
+                            placeholder="Custom slug (optional)"
+                            class="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+
+                        <button
+                            id="btn-submit"
+                            class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium flex justify-center gap-2 cursor-pointer transition-colors"
+                        >
+                            <span id="btn-text">Tạo shortlink</span>
+                            <span id="btn-spinner" class="hidden"
+                                ><i class="fa-solid fa-spinner animate-spin"></i
+                            ></span>
+                        </button>
+                    </form>
+                </div>
+
+                <div
+                    id="result-card"
+                    class="hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5"
+                >
+                    <div class="flex justify-between mb-3">
+                        <span class="text-green-600 text-sm font-medium"
+                            >✔ Created</span
+                        >
+                        <button
+                            onclick="hideResult()"
+                            class="text-slate-400 cursor-pointer hover:text-slate-600 dark:hover:text-slate-200"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <div class="mb-3">
+                        <input
+                            id="generated-url"
+                            readonly
+                            class="w-full px-3 py-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-blue-500 font-medium text-center focus:outline-none"
+                        />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button
+                            onclick="copyGeneratedUrl()"
+                            class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-medium text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                            <i class="fa-solid fa-copy"></i>
+                            <span>Copy Link</span>
+                        </button>
+
+                        <button
+                            onclick="toggleQR()"
+                            class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-medium text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                            <i class="fa-solid fa-qrcode"></i>
+                            <span>Mã QR</span>
+                        </button>
+                    </div>
+
+                    <div
+                        id="qrcode-box"
+                        class="hidden mt-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800/50 flex justify-center"
+                    ></div>
+                </div>
+
+                <div>
+                    <div class="text-xs uppercase text-slate-400 mb-2">
+                        History
+                    </div>
+
+                    <div
+                        id="history-list"
+                        class="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-800"
+                    >
+                        <div class="p-4 text-center text-sm text-slate-400">
+                            Empty
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <script>
+            const STORAGE_KEY = "shlink_pro_history";
+
+            /* FORM SUBMIT */
+            document
+                .getElementById("shorten-form")
+                .addEventListener("submit", async (e) => {
+                    e.preventDefault();
+                    await processShorten();
+                });
+
+            /* LOGIC RÚT GỌN LINK CHÍNH */
+            async function processShorten() {
+                const btn = document.getElementById("btn-submit");
+                const text = document.getElementById("btn-text");
+                const spin = document.getElementById("btn-spinner");
+
+                const longUrl = document.getElementById("long-url").value;
+                const customSlug = document
+                    .getElementById("custom-slug")
+                    .value.trim();
+
+                btn.disabled = true;
+                text.classList.add("hidden");
+                spin.classList.remove("hidden");
+
+                try {
+                    const res = await fetch(\`/api/shorten\`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            action: "create",
+                            longUrl: longUrl,
+                            customSlug: customSlug,
+                        }),
+                    });
+
+                    if (res.status === 400 || res.status === 409 || !res.ok) {
+                        const data = await res.json().catch(() => ({}));
+
+                        const isSlugConflict =
+                            data.detail &&
+                            (data.detail
+                                .toLowerCase()
+                                .includes("already exists") ||
+                                data.detail.toLowerCase().includes("conflict"));
+
+                        if (isSlugConflict && customSlug) {
+                            btn.disabled = false;
+                            text.classList.remove("hidden");
+                            spin.classList.add("hidden");
+
+                            if (
+                                confirm(
+                                    \`Slug "\${customSlug}" đã tồn tại. Bạn có muốn ghi đè link cũ không?\`,
+                                )
+                            ) {
+                                btn.disabled = true;
+                                text.classList.add("hidden");
+                                spin.classList.remove("hidden");
+
+                                // Gọi lại create với flag overwrite — backend tự xóa cũ + tạo mới
+                                const retryRes = await fetch(\`/api/shorten\`, {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        action: "create",
+                                        longUrl: longUrl,
+                                        customSlug: customSlug,
+                                        overwrite: true,
+                                    }),
+                                });
+
+                                if (!retryRes.ok) {
+                                    const errData = await retryRes
+                                        .json()
+                                        .catch(() => ({}));
+                                    throw new Error(
+                                        errData.detail ||
+                                            "Không thể ghi đè slug.",
+                                    );
+                                }
+
+                                const data = await retryRes.json();
+                                document.getElementById("generated-url").value =
+                                    data.shortUrl;
+                                document
+                                    .getElementById("result-card")
+                                    .classList.remove("hidden");
+
+                                const box =
+                                    document.getElementById("qrcode-box");
+                                box.innerHTML = "";
+                                box.classList.add("hidden");
+                                new QRCode(box, {
+                                    text: data.shortUrl,
+                                    width: 140,
+                                    height: 140,
+                                });
+
+                                addHistory(data.shortUrl, longUrl);
+                                document.getElementById("long-url").value = "";
+                                document.getElementById("custom-slug").value =
+                                    "";
+                                toast("Ghi đè link thành công!");
+                                return;
+                            }
+                            return;
+                        }
+
+                        throw new Error(
+                            data.detail || "Có lỗi xảy ra từ Server",
+                        );
+                    }
+
+                    const data = await res.json();
+
+                    // Hiển thị kết quả thành công lên màn hình
+                    document.getElementById("generated-url").value =
+                        data.shortUrl;
+                    document
+                        .getElementById("result-card")
+                        .classList.remove("hidden");
+
+                    const box = document.getElementById("qrcode-box");
+                    box.innerHTML = "";
+                    box.classList.add("hidden");
+
+                    new QRCode(box, {
+                        text: data.shortUrl,
+                        width: 140,
+                        height: 140,
+                    });
+
+                    addHistory(data.shortUrl, longUrl);
+                    document.getElementById("long-url").value = "";
+                    document.getElementById("custom-slug").value = "";
+
+                    toast("Tạo link thành công!");
+                } catch (err) {
+                    toast(err.message, "error");
+                } finally {
+                    btn.disabled = false;
+                    text.classList.remove("hidden");
+                    spin.classList.add("hidden");
+                }
+            }
+
+            /* UI HELPERS */
+            function hideResult() {
+                document.getElementById("result-card").classList.add("hidden");
+            }
+
+            function toggleQR() {
+                document
+                    .getElementById("qrcode-box")
+                    .classList.toggle("hidden");
+            }
+
+            function copyGeneratedUrl() {
+                navigator.clipboard.writeText(
+                    document.getElementById("generated-url").value,
+                );
+                toast("Đã copy vào bộ nhớ tạm");
+            }
+
+            /* TOAST */
+            function toast(msg, type = "success") {
+                const t = document.getElementById("toast");
+                const tMsg = document.getElementById("toast-msg");
+                const tIcon = document.getElementById("toast-icon");
+
+                tMsg.innerText = msg;
+
+                if (type === "error") {
+                    tIcon.className =
+                        "fa-solid fa-circle-xmark text-red-500 mr-1";
+                } else {
+                    tIcon.className =
+                        "fa-solid fa-circle-check text-blue-500 mr-1";
+                }
+
+                t.classList.remove("opacity-0", "pointer-events-none");
+                t.classList.add("opacity-100");
+
+                setTimeout(() => {
+                    t.classList.remove("opacity-100");
+                    t.classList.add("opacity-0", "pointer-events-none");
+                }, 2500);
+            }
+
+            /* HISTORY */
+            function addHistory(shortUrl, longUrl) {
+                let data = JSON.parse(
+                    localStorage.getItem(STORAGE_KEY) || "[]",
+                );
+                data = data.filter((i) => i.shortUrl !== shortUrl);
+                data.unshift({ shortUrl, longUrl });
+                localStorage.setItem(
+                    STORAGE_KEY,
+                    JSON.stringify(data.slice(0, 6)),
+                );
+                renderHistory();
+            }
+
+            function renderHistory() {
+                const box = document.getElementById("history-list");
+                const data = JSON.parse(
+                    localStorage.getItem(STORAGE_KEY) || "[]",
+                );
+
+                box.replaceChildren();
+
+                if (!data.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "p-4 text-center text-sm text-slate-400";
+                    empty.textContent = "Empty";
+                    box.appendChild(empty);
+                    return;
+                }
+
+                data.forEach((i) => {
+                    const div = document.createElement("div");
+                    div.className =
+                        "p-3 flex justify-between items-center hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors";
+
+                    const textGroup = document.createElement("div");
+                    textGroup.className = "min-w-0 pr-3";
+
+                    const shortEl = document.createElement("div");
+                    shortEl.className =
+                        "text-sm text-blue-500 font-medium truncate";
+                    shortEl.textContent = i.shortUrl;
+
+                    const longEl = document.createElement("div");
+                    longEl.className = "text-xs text-slate-400 truncate";
+                    longEl.textContent = i.longUrl;
+
+                    textGroup.appendChild(shortEl);
+                    textGroup.appendChild(longEl);
+                    div.appendChild(textGroup);
+
+                    const copyBtn = document.createElement("button");
+                    copyBtn.className =
+                        "text-xs font-medium text-slate-400 shrink-0";
+                    copyBtn.textContent = "Copy";
+                    div.appendChild(copyBtn);
+
+                    div.addEventListener("click", () => {
+                        navigator.clipboard.writeText(i.shortUrl).catch(() => {
+                            // Fallback for HTTP contexts
+                            const ta = document.createElement("textarea");
+                            ta.value = i.shortUrl;
+                            ta.style.position = "fixed";
+                            ta.style.opacity = "0";
+                            document.body.appendChild(ta);
+                            ta.select();
+                            document.execCommand("copy");
+                            document.body.removeChild(ta);
+                        });
+                        toast("Đã copy");
+                    });
+
+                    box.appendChild(div);
+                });
+            }
+
+            window.onload = renderHistory;
+        </script>
+    </body>
+</html>`;
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const method = request.method;
+
+    // Serve HTML for root
+    if (method === "GET" && path === "/") {
+      return new Response(HTML, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+
+    // API endpoint
+    if (path === "/api/shorten") {
+      return handleApi(request, env);
+    }
+
+    // Slug redirect (single path segment, not "api")
+    if (method === "GET") {
+      const slug = path.slice(1);
+      if (slug && !slug.includes("/")) {
+        return handleRedirect(request, slug, env);
+      }
+    }
+
+    // Fallback: serve HTML for SPA
+    return new Response(HTML, {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  },
+};
+
+async function handleRedirect(request, slug, env) {
+  try {
+    const KV = env.SHORTENER_KV;
+    if (!KV) {
+      return new Response("KV Binding missing", { status: 500 });
+    }
+
+    const longUrl = await KV.get(slug);
+    if (longUrl) {
+      return Response.redirect(longUrl, 302);
+    }
+
+    const url = new URL(request.url);
+    return Response.redirect(url.origin, 302);
+  } catch (err) {
+    return new Response(err.message, { status: 500 });
+  }
+}
+
+async function handleApi(request, env) {
+  const KV = env.SHORTENER_KV;
+  const urlObj = new URL(request.url);
+  const domain = urlObj.origin;
+
+  if (!KV) {
+    return new Response(
+      JSON.stringify({ detail: "KV Namespace binding missing." }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  if (request.method !== "POST") {
+    return new Response(JSON.stringify({ detail: "Method not allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  try {
+    const body = await request.json();
+    const { action, longUrl: rawUrl, customSlug, overwrite } = body;
+
+    if (!action || !["create", "delete"].includes(action)) {
+      return new Response(JSON.stringify({ detail: "Invalid action" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // --- DELETE ---
+    if (action === "delete") {
+      if (!customSlug?.trim()) {
+        return new Response(
+          JSON.stringify({ detail: "customSlug is required for delete" }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      await KV.delete(customSlug.trim());
+      return new Response(null, { status: 204 });
+    }
+
+    // --- CREATE ---
+    if (!rawUrl?.trim()) {
+      return new Response(JSON.stringify({ detail: "longUrl is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const longUrl = rawUrl.trim();
+
+    try {
+      new URL(longUrl);
+    } catch {
+      return new Response(JSON.stringify({ detail: "Invalid URL format" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    let slug = customSlug?.trim() || "";
+    if (!slug) {
+      for (let i = 0; i < 5; i++) {
+        slug = Math.random().toString(36).substring(2, 8);
+        const existing = await KV.get(slug);
+        if (!existing) break;
+        slug = "";
+      }
+      if (!slug) {
+        return new Response(
+          JSON.stringify({
+            detail: "Could not generate unique slug, try again",
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    if (slug.length > 64) {
+      return new Response(
+        JSON.stringify({ detail: "Slug too long (max 64 chars)" }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    const existing = await KV.get(slug);
+    if (existing && customSlug) {
+      if (overwrite) {
+        await KV.delete(slug);
+        await KV.put(slug, longUrl, { expirationTtl: 86400 * 365 });
+        return new Response(
+          JSON.stringify({
+            shortUrl: `${domain}/${slug}`,
+            longUrl,
+            overwritten: true,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          detail: `Short URL with slug '${slug}' already exists`,
+        }),
+        { status: 409, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    await KV.put(slug, longUrl, { expirationTtl: 86400 * 365 });
+
+    return new Response(
+      JSON.stringify({ shortUrl: `${domain}/${slug}`, longUrl }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  } catch (err) {
+    return new Response(JSON.stringify({ detail: err.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
