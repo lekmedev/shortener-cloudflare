@@ -463,7 +463,7 @@ export default {
 
 async function handleRedirect(request, slug, env) {
   try {
-    const KV = env.MY_KV;
+    const KV = env.SHORTENER_KV;
     if (!KV) {
       return new Response("KV Binding missing", { status: 500 });
     }
@@ -481,7 +481,7 @@ async function handleRedirect(request, slug, env) {
 }
 
 async function handleApi(request, env) {
-  const KV = env.MY_KV;
+  const KV = env.SHORTENER_KV;
   const urlObj = new URL(request.url);
   const domain = urlObj.origin;
 

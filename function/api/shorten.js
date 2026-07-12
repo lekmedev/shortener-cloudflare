@@ -1,5 +1,5 @@
 export async function onRequestPost(context) {
-  const KV = context.env.MY_KV;
+  const KV = context.env.SHORTENER_KV;
   const urlObj = new URL(context.request.url);
   const domain = urlObj.origin;
 
