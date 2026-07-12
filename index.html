@@ -158,226 +158,271 @@
             const STORAGE_KEY = "shlink_pro_history";
 
             /* FORM SUBMIT */
-            document.getElementById("shorten-form").addEventListener("submit", async (e) => {
-              e.preventDefault();
-              await processShorten();
-            });
+            document
+                .getElementById("shorten-form")
+                .addEventListener("submit", async (e) => {
+                    e.preventDefault();
+                    await processShorten();
+                });
 
             /* LOGIC RÚT GỌN LINK CHÍNH */
             async function processShorten() {
-              const btn = document.getElementById("btn-submit");
-              const text = document.getElementById("btn-text");
-              const spin = document.getElementById("btn-spinner");
+                const btn = document.getElementById("btn-submit");
+                const text = document.getElementById("btn-text");
+                const spin = document.getElementById("btn-spinner");
 
-              const longUrl = document.getElementById("long-url").value;
-              const customSlug = document.getElementById("custom-slug").value.trim();
+                const longUrl = document.getElementById("long-url").value;
+                const customSlug = document
+                    .getElementById("custom-slug")
+                    .value.trim();
 
-              btn.disabled = true;
-              text.classList.add("hidden");
-              spin.classList.remove("hidden");
+                btn.disabled = true;
+                text.classList.add("hidden");
+                spin.classList.remove("hidden");
 
-              try {
-                // Gọi đến Endpoint API Proxy cục bộ trên Cloudflare Pages [cite: 23]
-                const res = await fetch(`/api/shorten`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    action: "create",
-                    longUrl: longUrl,
-                    customSlug: customSlug
-                  })
-                });
-
-                // Nếu xảy ra lỗi trùng slug trùng khớp với phản hồi từ backend KV [cite: 4]
-                if (res.status === 400 || res.status === 409 || !res.ok) {
-                  const data = await res.json().catch(() => ({}));
-
-                  const isSlugConflict = data.detail && (
-                    data.detail.toLowerCase().includes("already exists") ||
-                    data.detail.toLowerCase().includes("conflict")
-                  );
-
-                  if (isSlugConflict && customSlug) {
-                    btn.disabled = false;
-                    text.classList.remove("hidden");
-                    spin.classList.add("hidden");
-
-                    if (confirm(`Slug "${customSlug}" đã tồn tại. Bạn có muốn ghi đè link cũ không?`)) {
-                      btn.disabled = true;
-                      text.classList.add("hidden");
-                      spin.classList.remove("hidden");
-
-                      // Gọi lại create với flag overwrite — backend tự xóa cũ + tạo mới
-                      const retryRes = await fetch(`/api/shorten`, {
+                try {
+                    // Gọi đến Endpoint API Proxy cục bộ trên Cloudflare Pages [cite: 23]
+                    const res = await fetch(`/api/shorten`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                          action: "create",
-                          longUrl: longUrl,
-                          customSlug: customSlug,
-                          overwrite: true
-                        })
-                      });
+                            action: "create",
+                            longUrl: longUrl,
+                            customSlug: customSlug,
+                        }),
+                    });
 
-                      if (!retryRes.ok) {
-                        const errData = await retryRes.json().catch(() => ({}));
-                        throw new Error(errData.detail || "Không thể ghi đè slug.");
-                      }
+                    // Nếu xảy ra lỗi trùng slug trùng khớp với phản hồi từ backend KV [cite: 4]
+                    if (res.status === 400 || res.status === 409 || !res.ok) {
+                        const data = await res.json().catch(() => ({}));
 
-                      const data = await retryRes.json();
-                      document.getElementById("generated-url").value = data.shortUrl;
-                      document.getElementById("result-card").classList.remove("hidden");
+                        const isSlugConflict =
+                            data.detail &&
+                            (data.detail
+                                .toLowerCase()
+                                .includes("already exists") ||
+                                data.detail.toLowerCase().includes("conflict"));
 
-                      const box = document.getElementById("qrcode-box");
-                      box.innerHTML = "";
-                      box.classList.add("hidden");
-                      new QRCode(box, { text: data.shortUrl, width: 140, height: 140 });
+                        if (isSlugConflict && customSlug) {
+                            btn.disabled = false;
+                            text.classList.remove("hidden");
+                            spin.classList.add("hidden");
 
-                      addHistory(data.shortUrl, longUrl);
-                      document.getElementById("long-url").value = "";
-                      document.getElementById("custom-slug").value = "";
-                      toast("Ghi đè link thành công!");
-                      return;
+                            if (
+                                confirm(
+                                    `Slug "${customSlug}" đã tồn tại. Bạn có muốn ghi đè link cũ không?`,
+                                )
+                            ) {
+                                btn.disabled = true;
+                                text.classList.add("hidden");
+                                spin.classList.remove("hidden");
+
+                                // Gọi lại create với flag overwrite — backend tự xóa cũ + tạo mới
+                                const retryRes = await fetch(`/api/shorten`, {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    body: JSON.stringify({
+                                        action: "create",
+                                        longUrl: longUrl,
+                                        customSlug: customSlug,
+                                        overwrite: true,
+                                    }),
+                                });
+
+                                if (!retryRes.ok) {
+                                    const errData = await retryRes
+                                        .json()
+                                        .catch(() => ({}));
+                                    throw new Error(
+                                        errData.detail ||
+                                            "Không thể ghi đè slug.",
+                                    );
+                                }
+
+                                const data = await retryRes.json();
+                                document.getElementById("generated-url").value =
+                                    data.shortUrl;
+                                document
+                                    .getElementById("result-card")
+                                    .classList.remove("hidden");
+
+                                const box =
+                                    document.getElementById("qrcode-box");
+                                box.innerHTML = "";
+                                box.classList.add("hidden");
+                                new QRCode(box, {
+                                    text: data.shortUrl,
+                                    width: 140,
+                                    height: 140,
+                                });
+
+                                addHistory(data.shortUrl, longUrl);
+                                document.getElementById("long-url").value = "";
+                                document.getElementById("custom-slug").value =
+                                    "";
+                                toast("Ghi đè link thành công!");
+                                return;
+                            }
+                            return;
+                        }
+
+                        throw new Error(
+                            data.detail || "Có lỗi xảy ra từ Server",
+                        );
                     }
-                    return;
-                  }
 
-                  throw new Error(data.detail || "Có lỗi xảy ra từ Server");
+                    const data = await res.json();
+
+                    // Hiển thị kết quả thành công lên màn hình
+                    document.getElementById("generated-url").value =
+                        data.shortUrl;
+                    document
+                        .getElementById("result-card")
+                        .classList.remove("hidden");
+
+                    const box = document.getElementById("qrcode-box");
+                    box.innerHTML = "";
+                    box.classList.add("hidden");
+
+                    new QRCode(box, {
+                        text: data.shortUrl,
+                        width: 140,
+                        height: 140,
+                    });
+
+                    addHistory(data.shortUrl, longUrl);
+                    document.getElementById("long-url").value = "";
+                    document.getElementById("custom-slug").value = "";
+
+                    toast("Tạo link thành công!");
+                } catch (err) {
+                    toast(err.message, "error");
+                } finally {
+                    btn.disabled = false;
+                    text.classList.remove("hidden");
+                    spin.classList.add("hidden");
                 }
-
-                const data = await res.json();
-
-                // Hiển thị kết quả thành công lên màn hình
-                document.getElementById("generated-url").value = data.shortUrl;
-                document.getElementById("result-card").classList.remove("hidden");
-
-                const box = document.getElementById("qrcode-box");
-                box.innerHTML = "";
-                box.classList.add("hidden");
-
-                new QRCode(box, {
-                  text: data.shortUrl,
-                  width: 140,
-                  height: 140
-                });
-
-                addHistory(data.shortUrl, longUrl);
-                document.getElementById("long-url").value = "";
-                document.getElementById("custom-slug").value = "";
-
-                toast("Tạo link thành công!");
-              } catch (err) {
-                toast(err.message, "error");
-              } finally {
-                btn.disabled = false;
-                text.classList.remove("hidden");
-                spin.classList.add("hidden");
-              }
             }
 
             /* UI HELPERS */
             function hideResult() {
-              document.getElementById("result-card").classList.add("hidden");
+                document.getElementById("result-card").classList.add("hidden");
             }
 
             function toggleQR() {
-              document.getElementById("qrcode-box").classList.toggle("hidden");
+                document
+                    .getElementById("qrcode-box")
+                    .classList.toggle("hidden");
             }
 
             function copyGeneratedUrl() {
-              navigator.clipboard.writeText(
-                document.getElementById("generated-url").value
-              );
-              toast("Đã copy vào bộ nhớ tạm");
+                navigator.clipboard.writeText(
+                    document.getElementById("generated-url").value,
+                );
+                toast("Đã copy vào bộ nhớ tạm");
             }
 
             /* TOAST */
-            function toast(msg, type="success") {
-              const t = document.getElementById("toast");
-              const tMsg = document.getElementById("toast-msg");
-              const tIcon = document.getElementById("toast-icon");
+            function toast(msg, type = "success") {
+                const t = document.getElementById("toast");
+                const tMsg = document.getElementById("toast-msg");
+                const tIcon = document.getElementById("toast-icon");
 
-              tMsg.innerText = msg;
+                tMsg.innerText = msg;
 
-              if(type === "error") {
-                tIcon.className = "fa-solid fa-circle-xmark text-red-500 mr-1";
-              } else {
-                tIcon.className = "fa-solid fa-circle-check text-blue-500 mr-1";
-              }
+                if (type === "error") {
+                    tIcon.className =
+                        "fa-solid fa-circle-xmark text-red-500 mr-1";
+                } else {
+                    tIcon.className =
+                        "fa-solid fa-circle-check text-blue-500 mr-1";
+                }
 
-              t.classList.remove("opacity-0", "pointer-events-none"); [cite: 14]
-              t.classList.add("opacity-100");
+                t.classList.remove("opacity-0", "pointer-events-none");
+                t.classList.add("opacity-100");
 
-              setTimeout(() => {
-                t.classList.remove("opacity-100");
-                t.classList.add("opacity-0", "pointer-events-none"); [cite: 14]
-              }, 2500);
+                setTimeout(() => {
+                    t.classList.remove("opacity-100");
+                    t.classList.add("opacity-0", "pointer-events-none");
+                }, 2500);
             }
 
             /* HISTORY */
             function addHistory(shortUrl, longUrl) {
-              let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-              data = data.filter(i => i.shortUrl !== shortUrl);
-              data.unshift({shortUrl, longUrl});
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(data.slice(0,6)));
-              renderHistory();
+                let data = JSON.parse(
+                    localStorage.getItem(STORAGE_KEY) || "[]",
+                );
+                data = data.filter((i) => i.shortUrl !== shortUrl);
+                data.unshift({ shortUrl, longUrl });
+                localStorage.setItem(
+                    STORAGE_KEY,
+                    JSON.stringify(data.slice(0, 6)),
+                );
+                renderHistory();
             }
 
             function renderHistory() {
-              const box = document.getElementById("history-list");
-              const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+                const box = document.getElementById("history-list");
+                const data = JSON.parse(
+                    localStorage.getItem(STORAGE_KEY) || "[]",
+                );
 
-              box.replaceChildren();
+                box.replaceChildren();
 
-              if (!data.length) {
-                const empty = document.createElement("div");
-                empty.className = "p-4 text-center text-sm text-slate-400";
-                empty.textContent = "Empty";
-                box.appendChild(empty);
-                return;
-              }
+                if (!data.length) {
+                    const empty = document.createElement("div");
+                    empty.className = "p-4 text-center text-sm text-slate-400";
+                    empty.textContent = "Empty";
+                    box.appendChild(empty);
+                    return;
+                }
 
-              data.forEach(i => {
-                const div = document.createElement("div");
-                div.className = "p-3 flex justify-between items-center hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors";
+                data.forEach((i) => {
+                    const div = document.createElement("div");
+                    div.className =
+                        "p-3 flex justify-between items-center hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors";
 
-                const textGroup = document.createElement("div");
-                textGroup.className = "min-w-0 pr-3";
+                    const textGroup = document.createElement("div");
+                    textGroup.className = "min-w-0 pr-3";
 
-                const shortEl = document.createElement("div");
-                shortEl.className = "text-sm text-blue-500 font-medium truncate";
-                shortEl.textContent = i.shortUrl;
+                    const shortEl = document.createElement("div");
+                    shortEl.className =
+                        "text-sm text-blue-500 font-medium truncate";
+                    shortEl.textContent = i.shortUrl;
 
-                const longEl = document.createElement("div");
-                longEl.className = "text-xs text-slate-400 truncate";
-                longEl.textContent = i.longUrl;
+                    const longEl = document.createElement("div");
+                    longEl.className = "text-xs text-slate-400 truncate";
+                    longEl.textContent = i.longUrl;
 
-                textGroup.appendChild(shortEl);
-                textGroup.appendChild(longEl);
-                div.appendChild(textGroup);
+                    textGroup.appendChild(shortEl);
+                    textGroup.appendChild(longEl);
+                    div.appendChild(textGroup);
 
-                const copyBtn = document.createElement("button");
-                copyBtn.className = "text-xs font-medium text-slate-400 shrink-0";
-                copyBtn.textContent = "Copy";
-                div.appendChild(copyBtn);
+                    const copyBtn = document.createElement("button");
+                    copyBtn.className =
+                        "text-xs font-medium text-slate-400 shrink-0";
+                    copyBtn.textContent = "Copy";
+                    div.appendChild(copyBtn);
 
-                div.addEventListener("click", () => {
-                  navigator.clipboard.writeText(i.shortUrl).catch(() => {
-                    // Fallback for HTTP contexts
-                    const ta = document.createElement("textarea");
-                    ta.value = i.shortUrl;
-                    ta.style.position = "fixed";
-                    ta.style.opacity = "0";
-                    document.body.appendChild(ta);
-                    ta.select();
-                    document.execCommand("copy");
-                    document.body.removeChild(ta);
-                  });
-                  toast("Đã copy");
+                    div.addEventListener("click", () => {
+                        navigator.clipboard.writeText(i.shortUrl).catch(() => {
+                            // Fallback for HTTP contexts
+                            const ta = document.createElement("textarea");
+                            ta.value = i.shortUrl;
+                            ta.style.position = "fixed";
+                            ta.style.opacity = "0";
+                            document.body.appendChild(ta);
+                            ta.select();
+                            document.execCommand("copy");
+                            document.body.removeChild(ta);
+                        });
+                        toast("Đã copy");
+                    });
+
+                    box.appendChild(div);
                 });
-
-                box.appendChild(div);
-              });
             }
 
             window.onload = renderHistory;
