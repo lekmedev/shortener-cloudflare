@@ -13,12 +13,8 @@ export async function onRequestGet(context) {
       return Response.redirect(longUrl, 302);
     }
 
-    // Redirect về trang chủ nếu không tìm thấy
     const url = new URL(context.request.url);
-    return Response.redirect(
-      url.origin + "/?notfound=" + encodeURIComponent(slug),
-      302,
-    );
+    return Response.redirect(url.origin, 302);
   } catch (err) {
     return new Response(err.message, { status: 500 });
   }

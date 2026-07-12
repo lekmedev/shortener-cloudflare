@@ -327,16 +327,15 @@
               const box = document.getElementById("history-list");
               const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
 
+              box.replaceChildren();
+
               if (!data.length) {
-                box.textContent = "";
                 const empty = document.createElement("div");
                 empty.className = "p-4 text-center text-sm text-slate-400";
                 empty.textContent = "Empty";
                 box.appendChild(empty);
                 return;
               }
-
-              box.textContent = "";
 
               data.forEach(i => {
                 const div = document.createElement("div");
