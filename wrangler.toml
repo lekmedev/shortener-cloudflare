@@ -1,0 +1,7 @@
+name = "shortener-cloudflare"
+main = "_worker.js"
+compatibility_date = "2025-07-13"
+
+[[kv_namespaces]]
+binding = "MY_KV"
+id = "your-kv-namespace-id-here"
