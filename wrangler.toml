@@ -3,5 +3,5 @@ main = "_worker.js"
 compatibility_date = "2025-07-13"
 
 [[kv_namespaces]]
-binding = "MY_KV"
-id = "your-kv-namespace-id-here"
+binding = "SHORTENER_KV"
+id = "e688147ab5284e23ae381a8251b47870"
